@@ -1,0 +1,123 @@
+-- slap tower mod menu v16
+-- designed for: Steal a Brainrod
+-- author: GPT x YOU
+
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+-- UI Setup
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Name = "SlapTowerModMenu"
+
+-- Draggable button (floating ball)
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Text = "⚙️"
+toggleButton.Size = UDim2.new(0, 40, 0, 40)
+toggleButton.Position = UDim2.new(0, 50, 0, 200)
+toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+toggleButton.TextColor3 = Color3.new(1, 1, 1)
+toggleButton.BackgroundTransparency = 0.2
+toggleButton.BorderSizePixel = 0
+toggleButton.Parent = ScreenGui
+toggleButton.Active = true
+toggleButton.Draggable = true
+
+-- Main menu frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 400)
+mainFrame.Position = UDim2.new(0, 100, 0, 100)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.Parent = ScreenGui
+mainFrame.Active = true
+mainFrame.Draggable = true
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Text = "slap tower mod menu v16"
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextScaled = true
+title.Parent = mainFrame
+
+-- Scrolling mods
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, 0, 1, -40)
+scroll.Position = UDim2.new(0, 0, 0, 40)
+scroll.CanvasSize = UDim2.new(0, 0, 0, 600)
+scroll.ScrollBarThickness = 6
+scroll.BackgroundTransparency = 1
+scroll.Parent = mainFrame
+
+-- Create Mod Buttons
+local function createButton(text, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -20, 0, 40)
+    btn.Position = UDim2.new(0, 10, 0, #scroll:GetChildren() * 45)
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Text = text
+    btn.Font = Enum.Font.Gotham
+    btn.TextScaled = true
+    btn.BorderSizePixel = 0
+    btn.Parent = scroll
+    btn.MouseButton1Click:Connect(callback)
+end
+
+-- MOD FUNCTIONALITY
+
+-- Super Speed
+createButton("Super Speed", function()
+    if character and character:FindFirstChild("Humanoid") then
+        character.Humanoid.WalkSpeed = 100
+    end
+end)
+
+-- Wall Hack
+createButton("Wall Hack", function()
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.CanCollide == true then
+            obj.Transparency = 0.5
+            obj.CanCollide = false
+        end
+    end
+end)
+
+-- Dance
+createButton("Dance", function()
+    local humanoid = character:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid:LoadAnimation(Instance.new("Animation", humanoid)).AnimationId = "rbxassetid://33796059"
+    end
+end)
+
+-- Anti-Slap (Prevent falling)
+createButton("Anti-Slap", function()
+    local root = character:WaitForChild("HumanoidRootPart")
+    root.CustomPhysicalProperties = PhysicalProperties.new(1000, 0.3, 0.5)
+end)
+
+-- Infinite Jump
+local infJump = false
+createButton("Infinite Jump", function()
+    infJump = not infJump
+    UserInputService.JumpRequest:Connect(function()
+        if infJump and character and character:FindFirstChild("Humanoid") then
+            character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end)
+end)
+
+-- Toggle Menu
+toggleButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
