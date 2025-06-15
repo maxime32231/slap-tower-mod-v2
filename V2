@@ -1,8 +1,9 @@
 -- slap tower mod menu v16
--- improved with toggles + wallhack fix
+-- volledig script met toggles + werkende wall hack + anti-slap fix
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 
@@ -10,7 +11,7 @@ local character = player.Character or player.CharacterAdded:Wait()
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 ScreenGui.Name = "SlapTowerModMenuV16"
 
--- Toggle Button
+-- Toggle Button (sleepbaar bolletje)
 local toggleButton = Instance.new("TextButton")
 toggleButton.Text = "⚙️"
 toggleButton.Size = UDim2.new(0, 40, 0, 40)
@@ -23,7 +24,7 @@ toggleButton.Parent = ScreenGui
 toggleButton.Active = true
 toggleButton.Draggable = true
 
--- Main Frame
+-- Main Frame (sleepbaar menu)
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 300, 0, 400)
 mainFrame.Position = UDim2.new(0, 100, 0, 100)
@@ -44,7 +45,7 @@ title.Font = Enum.Font.GothamBold
 title.TextScaled = true
 title.Parent = mainFrame
 
--- Scrolling Frame
+-- Scrolling Frame voor mods
 local scroll = Instance.new("ScrollingFrame")
 scroll.Size = UDim2.new(1, 0, 1, -40)
 scroll.Position = UDim2.new(0, 0, 0, 40)
@@ -53,12 +54,12 @@ scroll.ScrollBarThickness = 6
 scroll.BackgroundTransparency = 1
 scroll.Parent = mainFrame
 
--- Toggle Menu
+-- Toggle menu zichtbaarheid
 toggleButton.MouseButton1Click:Connect(function()
     mainFrame.Visible = not mainFrame.Visible
 end)
 
--- Mod States
+-- Mod states
 local modStates = {
     superSpeed = false,
     wallHack = false,
@@ -67,14 +68,14 @@ local modStates = {
     infJump = false,
 }
 
--- Wall parts cache
+-- Cache voor wall hack parts
 local wallParts = {}
 
--- Helper to create toggle buttons
+-- Functie om toggle buttons aan te maken
 local function createToggle(name, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, -20, 0, 40)
-    btn.Position = UDim2.new(0, 10, 0, #scroll:GetChildren() * 45)
+    btn.Position = UDim2.new(0, 10, 0, (#scroll:GetChildren() - 1) * 45) -- correcte positie
     btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.Gotham
@@ -92,29 +93,37 @@ local function createToggle(name, callback)
     end)
 end
 
--- Super Speed
+-- Super Speed toggle
 createToggle("Super Speed", function(state)
-    if state then
-        character.Humanoid.WalkSpeed = 100
-    else
-        character.Humanoid.WalkSpeed = 16
+    modStates.superSpeed = state
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = state and 100 or 16
     end
 end)
 
--- Wall Hack (only for parts named "Wall" or thin/tall shapes)
+-- Wall Hack toggle
 createToggle("Wall Hack", function(state)
+    modStates.wallHack = state
+
     if state then
+        wallParts = {}
         for _, part in pairs(workspace:GetDescendants()) do
             if part:IsA("BasePart") and part.CanCollide == true then
-                if part.Name:lower():find("wall") or (part.Size.Y > 10 and part.Size.X < 10) then
-                    part.CanCollide = false
+                local name = part.Name:lower()
+                local isWallLike =
+                    name:find("wall") or name:find("barrier") or name:find("fence") or
+                    (part.Size.Y > part.Size.X and part.Size.Y > part.Size.Z and part.Position.Y > 5)
+
+                if isWallLike and part.Anchored then
                     part.Transparency = 0.5
+                    part.CanCollide = false
                     table.insert(wallParts, part)
                 end
             end
         end
     else
-        for _, part in pairs(wallParts) do
+        for _, part in ipairs(wallParts) do
             if part and part.Parent then
                 part.CanCollide = true
                 part.Transparency = 0
@@ -124,40 +133,52 @@ createToggle("Wall Hack", function(state)
     end
 end)
 
--- Dance
+-- Dance toggle
+local danceTrack = nil
 createToggle("Dance", function(state)
-    if state then
-        local anim = Instance.new("Animation")
-        anim.AnimationId = "rbxassetid://33796059"
-        local hum = character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            local track = hum:LoadAnimation(anim)
-            track:Play()
-        end
-    end
-end)
-
--- Anti-Slap
-local originalProps = nil
-createToggle("Anti-Slap", function(state)
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if root then
+    modStates.dance = state
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
         if state then
-            originalProps = root.CustomPhysicalProperties
-            root.CustomPhysicalProperties = PhysicalProperties.new(1000, 0.3, 0.5)
-        elseif originalProps then
-            root.CustomPhysicalProperties = originalProps
+            local anim = Instance.new("Animation")
+            anim.AnimationId = "rbxassetid://33796059"
+            danceTrack = humanoid:LoadAnimation(anim)
+            danceTrack:Play()
+        else
+            if danceTrack then
+                danceTrack:Stop()
+                danceTrack = nil
+            end
         end
     end
 end)
 
--- Infinite Jump
+-- Anti-Slap toggle
+createToggle("Anti-Slap", function(state)
+    modStates.antiSlap = state
+end)
+
+-- Infinite Jump toggle
 createToggle("Infinite Jump", function(state)
     modStates.infJump = state
 end)
 
+-- Anti-Slap logic: neutraliseer velocity elke frame als actief
+RunService.Stepped:Connect(function()
+    if modStates.antiSlap then
+        local root = character:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.Velocity = Vector3.new(0, 0, 0)
+            root.RotVelocity = Vector3.new(0, 0, 0)
+            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        end
+    end
+end)
+
+-- Infinite jump logic
 UserInputService.JumpRequest:Connect(function()
-    if modStates.infJump and character and character:FindFirstChild("Humanoid") then
+    if modStates.infJump and character and character:FindFirstChildOfClass("Humanoid") then
         character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
     end
 end)
