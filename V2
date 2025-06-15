@@ -1,5 +1,5 @@
 -- slap tower mod menu v16
--- volledig script met toggles + werkende wall hack + anti-slap fix
+-- verbeterd met noclip style wall hack
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -68,14 +68,11 @@ local modStates = {
     infJump = false,
 }
 
--- Cache voor wall hack parts
-local wallParts = {}
-
 -- Functie om toggle buttons aan te maken
 local function createToggle(name, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, -20, 0, 40)
-    btn.Position = UDim2.new(0, 10, 0, (#scroll:GetChildren() - 1) * 45) -- correcte positie
+    btn.Position = UDim2.new(0, 10, 0, (#scroll:GetChildren() - 1) * 45)
     btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.Gotham
@@ -102,34 +99,25 @@ createToggle("Super Speed", function(state)
     end
 end)
 
--- Wall Hack toggle
+-- Wall Hack (noclip style)
+local noclip = false
 createToggle("Wall Hack", function(state)
+    noclip = state
     modStates.wallHack = state
+end)
 
-    if state then
-        wallParts = {}
-        for _, part in pairs(workspace:GetDescendants()) do
-            if part:IsA("BasePart") and part.CanCollide == true then
-                local name = part.Name:lower()
-                local isWallLike =
-                    name:find("wall") or name:find("barrier") or name:find("fence") or
-                    (part.Size.Y > part.Size.X and part.Size.Y > part.Size.Z and part.Position.Y > 5)
-
-                if isWallLike and part.Anchored then
-                    part.Transparency = 0.5
-                    part.CanCollide = false
-                    table.insert(wallParts, part)
-                end
-            end
+RunService.Stepped:Connect(function()
+    if noclip then
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        if root then
+            -- Zet CanCollide uit om door muren te lopen
+            root.CanCollide = false
         end
     else
-        for _, part in ipairs(wallParts) do
-            if part and part.Parent then
-                part.CanCollide = true
-                part.Transparency = 0
-            end
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.CanCollide = true
         end
-        wallParts = {}
     end
 end)
 
@@ -166,7 +154,7 @@ end)
 -- Anti-Slap logic: neutraliseer velocity elke frame als actief
 RunService.Stepped:Connect(function()
     if modStates.antiSlap then
-        local root = character:FindFirstChild("HumanoidRootPart")
+        local root = character and character:FindFirstChild("HumanoidRootPart")
         if root then
             root.Velocity = Vector3.new(0, 0, 0)
             root.RotVelocity = Vector3.new(0, 0, 0)
