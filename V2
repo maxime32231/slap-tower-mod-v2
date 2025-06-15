@@ -1,22 +1,17 @@
 -- slap tower mod menu v16
--- designed for: Steal a Brainrod
--- author: GPT x YOU
+-- improved with toggles + wallhack fix
 
--- Services
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 
 -- UI Setup
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-ScreenGui.Name = "SlapTowerModMenu"
+ScreenGui.Name = "SlapTowerModMenuV16"
 
--- Draggable button (floating ball)
+-- Toggle Button
 local toggleButton = Instance.new("TextButton")
-toggleButton.Name = "ToggleButton"
 toggleButton.Text = "⚙️"
 toggleButton.Size = UDim2.new(0, 40, 0, 40)
 toggleButton.Position = UDim2.new(0, 50, 0, 200)
@@ -28,7 +23,7 @@ toggleButton.Parent = ScreenGui
 toggleButton.Active = true
 toggleButton.Draggable = true
 
--- Main menu frame
+-- Main Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 300, 0, 400)
 mainFrame.Position = UDim2.new(0, 100, 0, 100)
@@ -49,7 +44,7 @@ title.Font = Enum.Font.GothamBold
 title.TextScaled = true
 title.Parent = mainFrame
 
--- Scrolling mods
+-- Scrolling Frame
 local scroll = Instance.new("ScrollingFrame")
 scroll.Size = UDim2.new(1, 0, 1, -40)
 scroll.Position = UDim2.new(0, 0, 0, 40)
@@ -58,66 +53,111 @@ scroll.ScrollBarThickness = 6
 scroll.BackgroundTransparency = 1
 scroll.Parent = mainFrame
 
--- Create Mod Buttons
-local function createButton(text, callback)
+-- Toggle Menu
+toggleButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- Mod States
+local modStates = {
+    superSpeed = false,
+    wallHack = false,
+    dance = false,
+    antiSlap = false,
+    infJump = false,
+}
+
+-- Wall parts cache
+local wallParts = {}
+
+-- Helper to create toggle buttons
+local function createToggle(name, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, -20, 0, 40)
     btn.Position = UDim2.new(0, 10, 0, #scroll:GetChildren() * 45)
     btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.Text = text
     btn.Font = Enum.Font.Gotham
     btn.TextScaled = true
     btn.BorderSizePixel = 0
     btn.Parent = scroll
-    btn.MouseButton1Click:Connect(callback)
+
+    local active = false
+    btn.Text = name .. ": OFF"
+
+    btn.MouseButton1Click:Connect(function()
+        active = not active
+        btn.Text = name .. ": " .. (active and "ON" or "OFF")
+        callback(active)
+    end)
 end
 
--- MOD FUNCTIONALITY
-
 -- Super Speed
-createButton("Super Speed", function()
-    if character and character:FindFirstChild("Humanoid") then
+createToggle("Super Speed", function(state)
+    if state then
         character.Humanoid.WalkSpeed = 100
+    else
+        character.Humanoid.WalkSpeed = 16
     end
 end)
 
--- Wall Hack
-createButton("Wall Hack", function()
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and obj.CanCollide == true then
-            obj.Transparency = 0.5
-            obj.CanCollide = false
+-- Wall Hack (only for parts named "Wall" or thin/tall shapes)
+createToggle("Wall Hack", function(state)
+    if state then
+        for _, part in pairs(workspace:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide == true then
+                if part.Name:lower():find("wall") or (part.Size.Y > 10 and part.Size.X < 10) then
+                    part.CanCollide = false
+                    part.Transparency = 0.5
+                    table.insert(wallParts, part)
+                end
+            end
         end
+    else
+        for _, part in pairs(wallParts) do
+            if part and part.Parent then
+                part.CanCollide = true
+                part.Transparency = 0
+            end
+        end
+        wallParts = {}
     end
 end)
 
 -- Dance
-createButton("Dance", function()
-    local humanoid = character:FindFirstChild("Humanoid")
-    if humanoid then
-        humanoid:LoadAnimation(Instance.new("Animation", humanoid)).AnimationId = "rbxassetid://33796059"
+createToggle("Dance", function(state)
+    if state then
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://33796059"
+        local hum = character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            local track = hum:LoadAnimation(anim)
+            track:Play()
+        end
     end
 end)
 
--- Anti-Slap (Prevent falling)
-createButton("Anti-Slap", function()
-    local root = character:WaitForChild("HumanoidRootPart")
-    root.CustomPhysicalProperties = PhysicalProperties.new(1000, 0.3, 0.5)
+-- Anti-Slap
+local originalProps = nil
+createToggle("Anti-Slap", function(state)
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if root then
+        if state then
+            originalProps = root.CustomPhysicalProperties
+            root.CustomPhysicalProperties = PhysicalProperties.new(1000, 0.3, 0.5)
+        elseif originalProps then
+            root.CustomPhysicalProperties = originalProps
+        end
+    end
 end)
 
 -- Infinite Jump
-local infJump = false
-createButton("Infinite Jump", function()
-    infJump = not infJump
-    UserInputService.JumpRequest:Connect(function()
-        if infJump and character and character:FindFirstChild("Humanoid") then
-            character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end)
+createToggle("Infinite Jump", function(state)
+    modStates.infJump = state
 end)
 
--- Toggle Menu
-toggleButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = not mainFrame.Visible
+UserInputService.JumpRequest:Connect(function()
+    if modStates.infJump and character and character:FindFirstChild("Humanoid") then
+        character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
 end)
